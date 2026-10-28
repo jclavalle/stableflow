@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { SiteNav } from "@/components/SiteNav";
 import { TestnetBanner } from "@/components/TestnetBanner";
 
 import "./globals.css";
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <TestnetBanner />
+        <SiteNav />
         {children}
       </body>
     </html>

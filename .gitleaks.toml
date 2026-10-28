@@ -1,0 +1,10 @@
+# Gitleaks configuration: default rules plus a narrow allowlist.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public on-chain contract addresses, not secrets"
+# Circle's Base Sepolia test USDC contract (src/lib/chain/allowlist.ts). It
+# trips generic-api-key because it sits next to the word "token". Add only
+# exact public addresses here, never patterns.
+regexes = ['''(?i)0x036cbd53842c5426634e7929541ec2318f3dcf7e''']

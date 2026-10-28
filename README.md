@@ -10,7 +10,7 @@ Prototype of a stablecoin payment flow for LATAM freelancers: a freelancer reque
 | --- | --- |
 | Foundation (PR 1) | Merged |
 | Auth, schema, RLS (PR 2) | In review |
-| Payment requests (PR 3) | Not started |
+| Payment requests (PR 3) | In review |
 | Testnet verification (PR 4) | Not started |
 | Payout simulation (PR 5) | Not started |
 | Release evidence, deployment (PR 6) | Not started |
@@ -83,6 +83,7 @@ src/components/      shared UI (testnet banner)
 src/lib/auth/        wallet challenge (SIWE) build/verify
 src/lib/chain/       chain/token allowlist (later: ABI, receipt verifier)
 src/lib/config/      validated server configuration
+src/lib/payments/    amount parsing, link tokens, public projection
 src/lib/supabase/    user (RLS) and admin (service role) clients
 src/lib/wallet/      wagmi config (client-side connection only)
 src/proxy.ts         session refresh
