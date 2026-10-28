@@ -46,6 +46,15 @@ Labels follow [project-plan.md](project-plan.md) §1:
 | D7 | [P] | E2E runs against a production build on port 3217 with `reuseExistingServer: false`. Port 3100 was already in use locally by a FeedbackFlow server, which made a reused-server run test the wrong app. | 2026-10-28 |
 | D8 | [P] | `test:integration` passes with no tests until PR 2 adds local Supabase; this is reported as "no tests yet", not as passing coverage. | 2026-10-28 |
 | D9 | [P] | Secret scanning in CI via gitleaks, in addition to GitHub's default secret scanning on public repos. | 2026-10-28 |
+| D10 | [P] | **Migrations per PR** rather than the whole §6 schema up front: PR 2 adds `profiles`, `wallet_challenges`, `wallets`, `audit_events`; payment tables arrive with the PRs that use them. Deviation from plan §9 Day 1 wording, for reviewability. | 2026-10-28 |
+| D11 | [P] | Sign-in uses Supabase email + password (deterministic for tests; email confirmation via `/auth/callback` when enabled on the hosted project). Magic links remain an option. | 2026-10-28 |
+| D12 | [P] | Wallet proof uses Sign-In with Ethereum (EIP-4361) via `viem/siwe`: message bound to app domain/origin, chain 84532, single-use nonce, 5-minute expiry. Server stores only the nonce hash plus the exact message and requires an exact match. | 2026-10-28 |
+| D13 | [P] | Signature check is EOA-only (`ecrecover`, no RPC). Smart-contract wallets (ERC-1271/6492) are not supported for linking in the MVP. | 2026-10-28 |
+| D14 | [P] | Challenge consumption and wallet linking happen in one `link_wallet` Postgres function under a row lock, executable only by `service_role`. `user_id` always comes from the verified server session. | 2026-10-28 |
+| D15 | [P] | Clients get `SELECT` on their own rows only; all writes are server-side. `anon` has no table grants. `audit_events` is append-only via trigger, including for the service role. | 2026-10-28 |
+| D16 | [P] | Cookie-authenticated mutations require an exact `Origin` match with `APP_URL` (CSRF guard). Challenge creation is throttled to 5 per user per 10 minutes, counted in the database (no in-memory state on serverless). | 2026-10-28 |
+| D17 | [P] | Docker via **OrbStack** on the development Mac (Apple silicon, 8 GB RAM; lighter than Docker Desktop, free for personal use). Local Supabase runs there; CI also runs a disposable local Supabase. No hosted Supabase project created. | 2026-10-28 |
+| D18 | [P] | Server Supabase user client calls `connection()` before creation: under Cache Components the client reads the clock on construction, which Next.js rejects during prerendering. Playwright loads `.env*` via `@next/env` so local runs use the same configuration as `next start`. | 2026-10-28 |
 
 ## Open questions [O]
 
@@ -54,6 +63,6 @@ Labels follow [project-plan.md](project-plan.md) §1:
 | Is there an Airtm application deadline that should shrink scope? | Now | Follow the six-PR plan. |
 | Verify Base Sepolia test USDC address, decimals and bytecode against Circle docs and on-chain. | PR 4 | Constant from plan, checked 2026-10-28 per plan. |
 | Explorer: `sepolia.basescan.org` vs Base's own explorer. | PR 4 | `sepolia.basescan.org`. |
-| Supabase project: free-plan availability for an additional project. | PR 2 | Local Supabase CLI for development and CI. |
+| Supabase project: free-plan availability for an additional project. | PR 6 (hosting) | Local Supabase in CI; no hosted project yet. Check limits before creating one. |
 | Vercel Hobby eligibility for this demo. | PR 6 | Preview build only. |
 | `stableflow.juliolavalle.com` DNS ownership and availability. | PR 6 | No DNS changes. |

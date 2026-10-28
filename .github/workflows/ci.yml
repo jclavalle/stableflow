@@ -15,7 +15,10 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      FIAT_PAYOUT_MODE: simulation
+      APP_URL: http://localhost:3217
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -26,7 +29,26 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:unit
+
+      # Disposable local Supabase: applies every migration from scratch.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,realtime,storage-api
+      - name: Export local Supabase credentials
+        run: |
+          supabase status -o env | sed 's/"//g' > "$RUNNER_TEMP/supabase.env"
+          get() { grep "^$1=" "$RUNNER_TEMP/supabase.env" | cut -d= -f2-; }
+          {
+            echo "SUPABASE_TEST_URL=$(get API_URL)"
+            echo "SUPABASE_TEST_ANON_KEY=$(get ANON_KEY)"
+            echo "SUPABASE_TEST_SERVICE_ROLE_KEY=$(get SERVICE_ROLE_KEY)"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(get API_URL)"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(get ANON_KEY)"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$(get SERVICE_ROLE_KEY)"
+          } >> "$GITHUB_ENV"
       - run: npm run test:integration
+
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

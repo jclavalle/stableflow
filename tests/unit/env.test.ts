@@ -5,19 +5,25 @@ import { parseServerEnv } from "@/lib/config/env";
 const valid = {
   APP_URL: "http://localhost:3000",
   FIAT_PAYOUT_MODE: "simulation",
+  NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "public-anon-key",
+  SUPABASE_SERVICE_ROLE_KEY: "server-only-key",
 };
+
+function without(key: keyof typeof valid): Record<string, string> {
+  return Object.fromEntries(Object.entries(valid).filter(([name]) => name !== key));
+}
 
 describe("parseServerEnv", () => {
   it("accepts a minimal local configuration and defaults the RPC", () => {
     expect(parseServerEnv(valid)).toEqual({
-      APP_URL: "http://localhost:3000",
+      ...valid,
       BASE_SEPOLIA_RPC_URL: "https://sepolia.base.org",
-      FIAT_PAYOUT_MODE: "simulation",
     });
   });
 
   it("fails closed when fiat payout mode is missing or not simulation", () => {
-    expect(() => parseServerEnv({ APP_URL: valid.APP_URL })).toThrow(/FIAT_PAYOUT_MODE/);
+    expect(() => parseServerEnv(without("FIAT_PAYOUT_MODE"))).toThrow(/FIAT_PAYOUT_MODE/);
     expect(() => parseServerEnv({ ...valid, FIAT_PAYOUT_MODE: "live" })).toThrow(
       /FIAT_PAYOUT_MODE/,
     );
@@ -42,6 +48,12 @@ describe("parseServerEnv", () => {
     ).toThrow(/NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/);
     expect(() => parseServerEnv({ ...valid, NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL: "x" })).toThrow(
       /exposed to the browser/,
+    );
+  });
+
+  it("requires the server-only Supabase key", () => {
+    expect(() => parseServerEnv(without("SUPABASE_SERVICE_ROLE_KEY"))).toThrow(
+      /SUPABASE_SERVICE_ROLE_KEY/,
     );
   });
 

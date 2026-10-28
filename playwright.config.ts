@@ -1,4 +1,9 @@
+import { loadEnvConfig } from "@next/env";
 import { defineConfig, devices } from "@playwright/test";
+
+// Same .env files Next.js reads, so locally configured Supabase enables the
+// auth tests. Variables already set (as in CI) take precedence.
+loadEnvConfig(process.cwd());
 
 const PORT = 3217;
 
@@ -20,5 +25,6 @@ export default defineConfig({
     // Never reuse: another local app on the same port would make tests pass or fail falsely.
     reuseExistingServer: false,
     timeout: 60_000,
+    env: { APP_URL: `http://localhost:${PORT}`, FIAT_PAYOUT_MODE: "simulation" },
   },
 });
