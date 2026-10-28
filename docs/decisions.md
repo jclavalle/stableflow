@@ -55,14 +55,8 @@ Labels follow [project-plan.md](project-plan.md) §1:
 | D16 | [P] | Cookie-authenticated mutations require an exact `Origin` match with `APP_URL` (CSRF guard). Challenge creation is throttled to 5 per user per 10 minutes, counted in the database (no in-memory state on serverless). | 2026-10-28 |
 | D17 | [P] | Docker via **OrbStack** on the development Mac (Apple silicon, 8 GB RAM; lighter than Docker Desktop, free for personal use). Local Supabase runs there; CI also runs a disposable local Supabase. No hosted Supabase project created. | 2026-10-28 |
 | D18 | [P] | Server Supabase user client calls `connection()` before creation: under Cache Components the client reads the clock on construction, which Next.js rejects during prerendering. Playwright loads `.env*` via `@next/env` so local runs use the same configuration as `next start`. | 2026-10-28 |
-
-## Open questions [O]
-
-| Question | Needed by | Default until answered |
-| --- | --- | --- |
-| Is there an Airtm application deadline that should shrink scope? | Now | Follow the six-PR plan. |
-| Verify Base Sepolia test USDC address, decimals and bytecode against Circle docs and on-chain. | PR 4 | Constant from plan, checked 2026-10-28 per plan. |
-| Explorer: `sepolia.basescan.org` vs Base's own explorer. | PR 4 | `sepolia.basescan.org`. |
-| Supabase project: free-plan availability for an additional project. | PR 6 (hosting) | Local Supabase in CI; no hosted project yet. Check limits before creating one. |
-| Vercel Hobby eligibility for this demo. | PR 6 | Preview build only. |
-| `stableflow.juliolavalle.com` DNS ownership and availability. | PR 6 | No DNS changes. |
+| D19 | [P] | `amount_units` is unconstrained `numeric` with explicit checks (`> 0`, integer, `< 1e78`) instead of the plan's `numeric(78,0)`. Found by an integration test: `numeric(78,0)` silently rounds `1.5` to `2` on assignment rather than rejecting it. App code sends decimal strings from `bigint`, never JS numbers; reads use `amount_units::text`. | 2026-10-28 |
+| D20 | [P] | Payment links are 256-bit random base64url tokens; only the SHA-256 is stored. The link is shown **once** at creation or regeneration; the owner can regenerate (old link stops working) or cancel. Public page and API return one generic "invalid, expired or cancelled" answer for every failure. `/pay/*` sends `Referrer-Policy: no-referrer` and `noindex`. | 2026-10-28 |
+| D21 | [P] | Request expiry is derived (`open` + `expires_at <= now` ⇒ expired) rather than written by a background job; the database functions and the public lookup both check it. A status-transition trigger allows `open→confirming/expired/cancelled` and `confirming→open/confirmed/expired`; snapshot fields (recipient, amount, chain, token, wallet, owner, expiry) are immutable for every role. | 2026-10-28 |
+| D22 | [P] | `creation_block` (plan §7 rule 6) is deferred to PR 4, which owns the RPC dependency. Requests without it will be refused confirmation (fail closed). | 2026-10-28 |
+| D23 | [P] | No payer-facing memo/description field, to keep the public projection minimal. Expiry choices 1/3/7 days (default 3). Demo cap 1,000,000 test USDC per request; 20 requests per user per hour. | 2026-10-28 |
