@@ -20,17 +20,19 @@ See [docs/known-limitations.md](docs/known-limitations.md) for what is and isn't
 
 ## Setup
 
-Requires Node 24 (`.nvmrc`) and npm. The database needs Docker for local Supabase.
+Requires Node 24 (`.nvmrc`) and npm. The database needs Docker for local Supabase (OrbStack or Docker Desktop).
 
 ```bash
 npm ci
 npx supabase start          # needs Docker; applies supabase/migrations
-npx supabase status         # copy API URL, anon key, service_role key into .env.local
 cp .env.example .env.local
+npx supabase status         # copy API URL, anon key, service_role key into .env.local
 npm run dev
 ```
 
 Reset the local database and re-apply all migrations with `npx supabase db reset`.
+
+To run database tests locally, export the same values as `SUPABASE_TEST_URL`, `SUPABASE_TEST_ANON_KEY` and `SUPABASE_TEST_SERVICE_ROLE_KEY`. Stop the stack with `npx supabase stop`.
 
 ## Scripts
 
@@ -62,7 +64,7 @@ Recorded 2026-10-28; `package-lock.json` is authoritative.
 | viem / wagmi | 2.57.13 / 3.7.9 |
 | @tanstack/react-query | 5.105.0 |
 | vitest | 5.0.5 |
-| @playwright/test | 1.64.1 |
+| @playwright/test / @next/env | 1.64.1 / 16.4.3 |
 | eslint | 9.39.5 |
 
 ## Docs

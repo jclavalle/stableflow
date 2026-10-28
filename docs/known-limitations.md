@@ -5,7 +5,7 @@ Updated with each PR. Nothing here is resolved unless marked so with evidence.
 ## Current state (PR 2 — identity and data)
 
 - Built: email/password sign-in, account page, wallet linking by signed message, identity schema with RLS. Not built: payment requests, chain verification, quote, payout simulation.
-- Database integration tests and auth E2E run only in CI (no Docker on the development Mac). Locally they are reported as skipped, not passed.
+- Database integration tests and auth E2E need a running local Supabase (`npx supabase start`); without it they are reported as skipped, not passed. CI always runs them.
 - Wallet linking has unit tests (signature, replay, expiry) and database tests (atomic consume), but **no browser test with a wallet yet**; a deterministic wallet adapter for E2E is planned with PR 3/6. Not yet tried with a real wallet extension.
 - Smart-contract wallets (ERC-1271/6492) cannot link; EOA wallets only.
 - Hosted Supabase email confirmation flow (`/auth/callback`) is untested until a hosted project exists.

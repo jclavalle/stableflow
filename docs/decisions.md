@@ -53,7 +53,8 @@ Labels follow [project-plan.md](project-plan.md) §1:
 | D14 | [P] | Challenge consumption and wallet linking happen in one `link_wallet` Postgres function under a row lock, executable only by `service_role`. `user_id` always comes from the verified server session. | 2026-10-28 |
 | D15 | [P] | Clients get `SELECT` on their own rows only; all writes are server-side. `anon` has no table grants. `audit_events` is append-only via trigger, including for the service role. | 2026-10-28 |
 | D16 | [P] | Cookie-authenticated mutations require an exact `Origin` match with `APP_URL` (CSRF guard). Challenge creation is throttled to 5 per user per 10 minutes, counted in the database (no in-memory state on serverless). | 2026-10-28 |
-| D17 | [O→P] | **Docker is not installed on the development Mac**, so local Supabase cannot run there. Database integration tests and auth E2E run in GitHub CI against a disposable local Supabase; locally they skip with a visible "skipped" count. No hosted Supabase project created. | 2026-10-28 |
+| D17 | [P] | Docker via **OrbStack** on the development Mac (Apple silicon, 8 GB RAM; lighter than Docker Desktop, free for personal use). Local Supabase runs there; CI also runs a disposable local Supabase. No hosted Supabase project created. | 2026-10-28 |
+| D18 | [P] | Server Supabase user client calls `connection()` before creation: under Cache Components the client reads the clock on construction, which Next.js rejects during prerendering. Playwright loads `.env*` via `@next/env` so local runs use the same configuration as `next start`. | 2026-10-28 |
 
 ## Open questions [O]
 
@@ -63,6 +64,5 @@ Labels follow [project-plan.md](project-plan.md) §1:
 | Verify Base Sepolia test USDC address, decimals and bytecode against Circle docs and on-chain. | PR 4 | Constant from plan, checked 2026-10-28 per plan. |
 | Explorer: `sepolia.basescan.org` vs Base's own explorer. | PR 4 | `sepolia.basescan.org`. |
 | Supabase project: free-plan availability for an additional project. | PR 6 (hosting) | Local Supabase in CI; no hosted project yet. Check limits before creating one. |
-| Install Docker (or OrbStack) locally so database tests and the full app run on the Mac? | Before PR 3 local testing | CI-only database testing. |
 | Vercel Hobby eligibility for this demo. | PR 6 | Preview build only. |
 | `stableflow.juliolavalle.com` DNS ownership and availability. | PR 6 | No DNS changes. |

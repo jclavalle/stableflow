@@ -3,13 +3,15 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
 import { getServerConfig } from "@/lib/config/server";
 
 /** Acts as the signed-in user; subject to RLS. */
 export async function createUserClient(): Promise<SupabaseClient> {
-  // Read cookies first: it marks the caller as request-time, so config is
-  // never evaluated during prerendering.
+  // Request-time only: the Supabase client reads the clock and config on
+  // creation, which must never happen during prerendering.
+  await connection();
   const cookieStore = await cookies();
   const config = getServerConfig();
   return createServerClient(config.NEXT_PUBLIC_SUPABASE_URL, config.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
