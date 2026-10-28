@@ -9,9 +9,9 @@ Prototype of a stablecoin payment flow for LATAM freelancers: a freelancer reque
 | Area | State |
 | --- | --- |
 | Foundation (PR 1) | Merged |
-| Auth, schema, RLS (PR 2) | In review |
-| Payment requests (PR 3) | In review |
-| Testnet verification (PR 4) | Not started |
+| Auth, schema, RLS (PR 2) | Merged |
+| Payment requests (PR 3) | Merged |
+| Testnet verification (PR 4) | In review |
 | Payout simulation (PR 5) | Not started |
 | Release evidence, deployment (PR 6) | Not started |
 | Deployment | **Not deployed** |
@@ -43,9 +43,10 @@ To run database tests locally, export the same values as `SUPABASE_TEST_URL`, `S
 | `npm run test:unit` | Vitest unit tests in `tests/unit` |
 | `npm run test:integration` | Vitest database tests (RLS, privileges, `link_wallet`) against local Supabase. Needs `SUPABASE_TEST_URL`, `SUPABASE_TEST_ANON_KEY`, `SUPABASE_TEST_SERVICE_ROLE_KEY`; skipped without them, required in CI |
 | `npm run build` | Production build |
+| `npm run chain:check` | Read-only check of chain ID, USDC bytecode, symbol and decimals against the live (or given) RPC |
 | `npm run test:e2e` | Playwright against the production build on port 3217 (run `npm run build` first; `npx playwright install chromium` once). Auth tests need the Supabase variables |
 
-No live secrets, wallet extension, faucet or RPC are needed for the test suite.
+No live secrets, wallet extension, faucet or RPC are needed for the test suite: E2E starts `e2e/mock-rpc.mjs` (a local stand-in for Base Sepolia on port 8546) and installs a fake browser wallet. Mock-chain results are not evidence of real-network behaviour; see `docs/manual-testnet-smoke.md`.
 
 ## Pinned versions
 
@@ -81,7 +82,7 @@ Recorded 2026-10-28; `package-lock.json` is authoritative.
 src/app/             pages and server routes
 src/components/      shared UI (testnet banner)
 src/lib/auth/        wallet challenge (SIWE) build/verify
-src/lib/chain/       chain/token allowlist (later: ABI, receipt verifier)
+src/lib/chain/       allowlist, receipt verifier, server RPC reader
 src/lib/config/      validated server configuration
 src/lib/payments/    amount parsing, link tokens, public projection
 src/lib/supabase/    user (RLS) and admin (service role) clients

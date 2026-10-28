@@ -38,6 +38,7 @@ async function createRequest(
       p_amount_units: options.amountUnits ?? "100000000",
       p_public_token_hash: tokenHash,
       p_expires_at: (options.expiresAt ?? new Date(Date.now() + DAY)).toISOString(),
+      p_creation_block: "1000",
     })
     .single<{ id: string; recipient_snapshot: string }>();
   return { ...result, token, tokenHash };
@@ -90,6 +91,7 @@ describe.skipIf(!hasTestDatabase)("payment requests", () => {
         { chain_id: 8453 },
         { token_address: "0x" + "1".repeat(40) },
         { expires_at: new Date(Date.now() + 30 * DAY).toISOString() },
+        { creation_block: 1 },
         { user_id: bob.id },
       ]) {
         const { error } = await adminClient().from("payment_requests").update(change).eq("id", id);
@@ -148,6 +150,7 @@ describe.skipIf(!hasTestDatabase)("payment requests", () => {
         p_amount_units: "1",
         p_public_token_hash: tokenHash,
         p_expires_at: new Date(Date.now() + DAY).toISOString(),
+        p_creation_block: "1000",
       });
       expect(create.error?.code).toBe(PERMISSION_DENIED);
     });

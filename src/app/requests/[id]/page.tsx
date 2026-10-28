@@ -5,12 +5,24 @@ import { Suspense } from "react";
 
 import { BASE_SEPOLIA, TEST_USDC } from "@/lib/chain/allowlist";
 import { formatUsdcUnits } from "@/lib/payments/amount";
-import { STATUS_LABELS } from "@/lib/payments/labels";
+import { rejectionMessage, STATUS_LABELS } from "@/lib/payments/labels";
 import { effectiveStatus, type RequestStatus } from "@/lib/payments/requests";
 import { requestIdSchema } from "@/lib/payments/server";
 import { createUserClient, getCurrentUser } from "@/lib/supabase/server";
 
+import { CheckPayment } from "./CheckPayment";
 import { RequestActions } from "./RequestActions";
+
+type Receipt = {
+  tx_hash: string;
+  block_number: string;
+  block_timestamp: string;
+  sender: string;
+  confirmations: number;
+  verified_at: string;
+};
+
+type Attempt = { tx_hash: string; status: string; error_code: string | null; confirmations: number; created_at: string };
 
 export const metadata: Metadata = { title: "Payment request — StableFlow" };
 
@@ -52,6 +64,21 @@ async function RequestDetails({ params }: { params: PageProps<"/requests/[id]">[
 
   const status = effectiveStatus(request, new Date());
 
+  const [{ data: receipt }, { data: attempts }] = await Promise.all([
+    supabase
+      .from("verified_receipts")
+      .select("tx_hash, block_number::text, block_timestamp, sender, confirmations, verified_at")
+      .eq("request_id", request.id)
+      .maybeSingle<Receipt>(),
+    supabase
+      .from("payment_attempts")
+      .select("tx_hash, status, error_code, confirmations, created_at")
+      .eq("request_id", request.id)
+      .order("created_at", { ascending: false })
+      .returns<Attempt[]>(),
+  ]);
+  const hasUnfinished = (attempts ?? []).some((a) => a.status === "submitted" || a.status === "pending");
+
   return (
     <>
       <h1 className="text-2xl font-semibold tracking-tight">
@@ -76,7 +103,60 @@ async function RequestDetails({ params }: { params: PageProps<"/requests/[id]">[
       <p className="text-xs opacity-80">
         The amount, recipient, token and network are fixed once the request is created.
       </p>
-      {status === "open" && <RequestActions requestId={request.id} />}
+
+      {receipt && (
+        <section aria-labelledby="receipt-heading" className="flex flex-col gap-2 rounded-md border border-current/20 p-4">
+          <h2 id="receipt-heading" className="text-lg font-semibold">
+            Verified receipt (blockchain evidence)
+          </h2>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <dt className="font-medium">Transaction</dt>
+            <dd className="break-all">
+              <a href={`${BASE_SEPOLIA.explorerUrl}/tx/${receipt.tx_hash}`} target="_blank" rel="noreferrer noopener" className="font-mono text-xs underline">
+                {receipt.tx_hash}
+              </a>
+            </dd>
+            <dt className="font-medium">From</dt>
+            <dd className="break-all font-mono text-xs">{receipt.sender}</dd>
+            <dt className="font-medium">Block</dt>
+            <dd>
+              {receipt.block_number} · {new Date(receipt.block_timestamp).toUTCString()}
+            </dd>
+            <dt className="font-medium">Verified</dt>
+            <dd>
+              {new Date(receipt.verified_at).toUTCString()} with {receipt.confirmations} confirmations
+            </dd>
+          </dl>
+          <p className="text-xs opacity-80">
+            Confirmations count blocks built on top of the one containing the payment. StableFlow
+            waits for 3 as a demo policy; this is not a guarantee of final settlement.
+          </p>
+        </section>
+      )}
+
+      {attempts && attempts.length > 0 && (
+        <section aria-labelledby="attempts-heading" className="flex flex-col gap-2">
+          <h2 id="attempts-heading" className="text-lg font-semibold">
+            Submitted transactions
+          </h2>
+          <ul className="flex flex-col gap-2 text-sm">
+            {attempts.map((attempt) => (
+              <li key={attempt.tx_hash} className="flex flex-col">
+                <span className="break-all font-mono text-xs">{attempt.tx_hash}</span>
+                <span>
+                  {attempt.status === "verified" && "Verified"}
+                  {attempt.status === "pending" && `Confirming (${attempt.confirmations} of 3)`}
+                  {attempt.status === "submitted" && "Waiting to appear on chain"}
+                  {attempt.status === "rejected" && `Not accepted — ${rejectionMessage(attempt.error_code)}`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hasUnfinished && <CheckPayment requestId={request.id} />}
+        </section>
+      )}
+
+      {status === "open" && !hasUnfinished && <RequestActions requestId={request.id} />}
     </>
   );
 }

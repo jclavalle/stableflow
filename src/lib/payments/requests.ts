@@ -61,22 +61,50 @@ export function toPublicProjection(row: PublicRow, now: Date): PublicPaymentRequ
   };
 }
 
+export type CapabilityRequest = {
+  /** Server-side only; never sent to the payer. */
+  id: string;
+  creationBlock: string | null;
+  projection: PublicPaymentRequest;
+};
+
 /**
- * Resolves a capability token to the public projection, or null for
- * malformed, unknown, expired or cancelled links (fail closed, one answer for
- * all). Takes a service-role client: the capability, not RLS, authorizes this.
+ * Resolves a capability token to its request, or null for malformed,
+ * unknown, expired or cancelled links (fail closed, one answer for all).
+ * Takes a service-role client: the capability, not RLS, authorizes this.
  */
+export async function findRequestByToken(
+  admin: SupabaseClient,
+  token: string,
+  now: Date,
+): Promise<CapabilityRequest | null> {
+  if (!isWellFormedLinkToken(token)) return null;
+  const { data, error } = await admin
+    .from("payment_requests")
+    .select(`id, creation_block::text, ${PUBLIC_REQUEST_COLUMNS}`)
+    .eq("public_token_hash", hashLinkToken(token))
+    .maybeSingle<PublicRow & { id: string; creation_block: string | null }>();
+  if (error) throw new Error("payment request lookup failed");
+  if (!data) return null;
+  const projection = toPublicProjection(data, now);
+  return projection ? { id: data.id, creationBlock: data.creation_block, projection } : null;
+}
+
 export async function findPublicRequest(
   admin: SupabaseClient,
   token: string,
   now: Date,
 ): Promise<PublicPaymentRequest | null> {
-  if (!isWellFormedLinkToken(token)) return null;
-  const { data, error } = await admin
-    .from("payment_requests")
-    .select(PUBLIC_REQUEST_COLUMNS)
-    .eq("public_token_hash", hashLinkToken(token))
-    .maybeSingle<PublicRow>();
-  if (error) throw new Error("payment request lookup failed");
-  return data ? toPublicProjection(data, now) : null;
+  return (await findRequestByToken(admin, token, now))?.projection ?? null;
+}
+
+/** Row shape the verifier needs, rebuilt from a resolved capability. */
+export function verificationRow(request: CapabilityRequest) {
+  return {
+    id: request.id,
+    recipient_snapshot: request.projection.recipient,
+    amount_units: request.projection.amountUnits,
+    creation_block: request.creationBlock,
+    expires_at: request.projection.expiresAt,
+  };
 }

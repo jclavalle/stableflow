@@ -2,9 +2,13 @@
 
 Updated with each PR. Nothing here is resolved unless marked so with evidence.
 
-## Current state (PR 3 — payment requests)
+## Current state (PR 4 — testnet verification)
 
-- Built: sign-in, wallet linking, payment requests with immutable snapshot, one-time share link, regenerate/cancel, public payment page. Not built: in-app payment, chain verification, quote, payout simulation. The payment page shows the details but has no "pay" button yet.
+- Built: sign-in, wallet linking, payment requests, public payment page with in-app wallet payment, server-side receipt verification with confirmations, owner receipt view. Not built: quote, payout simulation.
+- **No real testnet transfer has been made yet.** All payment E2E tests run against a local mock chain and a fake wallet (D30). The manual smoke test in `docs/manual-testnet-smoke.md` is pending.
+- Post-confirmation reorg re-validation (plan §7 rule 9) is not implemented yet; it is required before simulation in PR 5.
+- If the payer closes the tab before confirmation and nobody presses "Check payment status", the request stays `confirming`/`open` until someone checks (no background job, by design).
+- A transfer that does not match (wrong amount, late, wrong network) is not refunded or reassigned by the app; the funds are on chain wherever they were sent.
 - Payment links are shown once; a freelancer who loses one must regenerate it.
 - No rate limit on public link lookups. 256-bit tokens cannot be enumerated, but the endpoint can still be hammered; acceptable for a demo.
 - Request pages stream, so a request belonging to someone else returns HTTP 200 with "not found" content (no data shown); the JSON API returns a real 404.
