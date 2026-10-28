@@ -20,5 +20,6 @@ export default defineConfig({
     // Never reuse: another local app on the same port would make tests pass or fail falsely.
     reuseExistingServer: false,
     timeout: 60_000,
+    env: { APP_URL: `http://localhost:${PORT}`, FIAT_PAYOUT_MODE: "simulation" },
   },
 });

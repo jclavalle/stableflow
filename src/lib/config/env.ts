@@ -22,6 +22,11 @@ const httpsUrl = z
 const serverEnvSchema = z.object({
   APP_URL: httpsUrl,
   BASE_SEPOLIA_RPC_URL: httpsUrl.default(DEFAULT_RPC_URL),
+  NEXT_PUBLIC_SUPABASE_URL: httpsUrl,
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
+  // Bypasses RLS. Server-only; every query using it must be scoped to the
+  // authenticated user or a validated capability.
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   // The MVP never moves real fiat. Refuse to start unless simulation is explicit.
   FIAT_PAYOUT_MODE: z.literal("simulation"),
 });
