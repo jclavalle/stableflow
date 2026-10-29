@@ -20,6 +20,8 @@ Status: **not yet run.** Automated E2E uses a mock chain; this checklist produce
 7. Open the explorer link; confirm token, from, to and amount on the explorer.
 8. As the freelancer, open the request: status *Payment confirmed on testnet*, verified receipt shown.
 9. Negative check: create a second request for the same amount, and on its link submit the step-6 transaction hash via the browser console or API — it must be rejected (`evidence_already_used`).
+10. On the confirmed request, **Get illustrative BRL quote**: check each fee, the 4.95 effective rate and the "Simulated — no bank transfer" label (for 1.25 test USDC: fee 0.006250 + 0.50, net 0.743750, BRL 3.68).
+11. **Start simulated payout**: it re-checks the transaction on the real chain, then shows "Simulation complete — no bank transfer occurred." History lists blockchain and simulated events separately.
 
 ## Results
 

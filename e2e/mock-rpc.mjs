@@ -1,7 +1,9 @@
 // Deterministic stand-in for a Base Sepolia JSON-RPC node, for E2E tests only.
 // One block per second; transactions sent via `test_sendTransaction` are mined
 // in the next block, and USDC `transfer` calls emit a Transfer event.
-// Test controls: `test_setOutage` (transaction lookups fail), `test_reset`.
+// Test controls: `test_setOutage` (transaction lookups fail; pass a sender to
+// limit it to that payer's transactions, so parallel specs are unaffected), `test_dropTransaction`
+// (the transaction vanishes, as after a reorg), `test_reset`.
 import { createServer } from "node:http";
 
 import {
@@ -24,6 +26,7 @@ const startTimestamp = Math.floor(startedAt / 1000);
 let txs = new Map();
 let nonce = 0;
 let outage = false;
+let outageSenders = new Set();
 
 const head = () => GENESIS_BLOCK + Math.floor((Date.now() - startedAt) / 1000);
 const blockHash = (n) => keccak256(toHex(`mock-block-${n}`));
@@ -138,8 +141,15 @@ function ethCall({ to, data }) {
 // read the head block) in parallel are not disturbed.
 const CHAIN_READS = new Set(["eth_getTransactionByHash", "eth_getTransactionReceipt"]);
 
+function inOutage(method, params) {
+  if (!CHAIN_READS.has(method)) return false;
+  if (outage) return true;
+  const tx = txs.get(String(params[0]).toLowerCase());
+  return Boolean(tx && outageSenders.has(tx.from));
+}
+
 function handle(method, params) {
-  if (outage && CHAIN_READS.has(method)) throw Object.assign(new Error("mock outage"), { code: -32603 });
+  if (inOutage(method, params)) throw Object.assign(new Error("mock outage"), { code: -32603 });
   switch (method) {
     case "eth_chainId":
       return hex(CHAIN_ID);
@@ -186,12 +196,23 @@ function handle(method, params) {
       txs.set(hash, { hash, from: from.toLowerCase(), to: to?.toLowerCase() ?? null, data: data ?? "0x", nonce: nonce++, blockNumber: head() + 1 });
       return hash;
     }
-    case "test_setOutage":
-      outage = Boolean(params[0]);
-      return outage;
+    case "test_dropTransaction":
+      return txs.delete(String(params[0]).toLowerCase());
+    case "test_setOutage": {
+      const [on, sender] = params;
+      if (sender) {
+        if (on) outageSenders.add(String(sender).toLowerCase());
+        else outageSenders.delete(String(sender).toLowerCase());
+      } else {
+        outage = Boolean(on);
+        if (!on) outageSenders = new Set();
+      }
+      return Boolean(on);
+    }
     case "test_reset":
       txs = new Map();
       outage = false;
+      outageSenders = new Set();
       return true;
     default:
       throw Object.assign(new Error(`mock-rpc: unsupported method ${method}`), { code: -32601 });

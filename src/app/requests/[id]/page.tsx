@@ -8,9 +8,19 @@ import { formatUsdcUnits } from "@/lib/payments/amount";
 import { rejectionMessage, STATUS_LABELS } from "@/lib/payments/labels";
 import { effectiveStatus, type RequestStatus } from "@/lib/payments/requests";
 import { requestIdSchema } from "@/lib/payments/server";
+import {
+  QUOTE_COLUMNS,
+  SIMULATION_COLUMNS,
+  toQuoteView,
+  toSimulationView,
+  type QuoteRow,
+  type SimulationRow,
+} from "@/lib/payouts/views";
 import { createUserClient, getCurrentUser } from "@/lib/supabase/server";
 
 import { CheckPayment } from "./CheckPayment";
+import { History, type HistoryEvent } from "./History";
+import { PayoutPanel } from "./PayoutPanel";
 import { RequestActions } from "./RequestActions";
 
 type Receipt = {
@@ -64,7 +74,7 @@ async function RequestDetails({ params }: { params: PageProps<"/requests/[id]">[
 
   const status = effectiveStatus(request, new Date());
 
-  const [{ data: receipt }, { data: attempts }] = await Promise.all([
+  const [{ data: receipt }, { data: attempts }, { data: quotes }, { data: simulation }, { data: events }] = await Promise.all([
     supabase
       .from("verified_receipts")
       .select("tx_hash, block_number::text, block_timestamp, sender, confirmations, verified_at")
@@ -76,7 +86,23 @@ async function RequestDetails({ params }: { params: PageProps<"/requests/[id]">[
       .eq("request_id", request.id)
       .order("created_at", { ascending: false })
       .returns<Attempt[]>(),
+    supabase
+      .from("payout_quotes")
+      .select(QUOTE_COLUMNS)
+      .eq("request_id", request.id)
+      .order("created_at", { ascending: false })
+      .returns<QuoteRow[]>(),
+    supabase.from("payout_simulations").select(SIMULATION_COLUMNS).eq("request_id", request.id).maybeSingle<SimulationRow>(),
+    supabase
+      .from("audit_events")
+      .select("id, event_type, metadata, created_at")
+      .eq("request_id", request.id)
+      .order("created_at", { ascending: true })
+      .returns<HistoryEvent[]>(),
   ]);
+  const quoteViews = (quotes ?? []).map(toQuoteView);
+  const simulationView = simulation ? toSimulationView(simulation) : null;
+  const simulationQuote = simulationView ? (quoteViews.find((q) => q.id === simulationView.quoteId) ?? null) : null;
   const hasUnfinished = (attempts ?? []).some((a) => a.status === "submitted" || a.status === "pending");
 
   return (
@@ -157,6 +183,30 @@ async function RequestDetails({ params }: { params: PageProps<"/requests/[id]">[
       )}
 
       {status === "open" && !hasUnfinished && <RequestActions requestId={request.id} />}
+
+      {status === "under_review" && (
+        <section aria-labelledby="review-heading" className="flex flex-col gap-2 rounded-md border border-amber-700/60 p-4">
+          <h2 id="review-heading" className="text-lg font-semibold">
+            Under review
+          </h2>
+          <p className="text-sm">
+            When StableFlow re-checked this payment on Base Sepolia, the transaction or its block was no longer on the
+            canonical chain (for example, after a chain reorganization). Quotes and payout simulations are blocked. The
+            original receipt and history are kept below.
+          </p>
+        </section>
+      )}
+
+      {(status === "confirmed" || (status === "under_review" && simulationView)) && (
+        <PayoutPanel
+          requestId={request.id}
+          initialQuote={status === "confirmed" ? (quoteViews[0] ?? null) : null}
+          initialSimulation={simulationView}
+          simulationQuote={simulationQuote}
+        />
+      )}
+
+      {events && events.length > 0 && <History events={events} />}
     </>
   );
 }
