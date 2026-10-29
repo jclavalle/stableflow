@@ -6,15 +6,17 @@ import { installFakeWallet, mockRpc } from "./fake-wallet";
 import { createRequestViaUi, hasSupabase, seedFreelancer, signIn } from "./seed";
 
 test.skip(!hasSupabase, "No local Supabase configured");
-// The outage test toggles shared mock-chain state.
+// The outage test toggles shared mock-chain state (scoped to its own payer).
 test.describe.configure({ mode: "serial" });
 
 const SEPOLIA_L1 = 11_155_111;
 
-async function openAsPayer(browser: Browser, payUrl: string) {
+const newAccount = () => `0x${randomBytes(20).toString("hex")}`;
+
+async function openAsPayer(browser: Browser, payUrl: string, account = newAccount()) {
   const context = await browser.newContext();
   const page = await context.newPage();
-  await installFakeWallet(page, { account: `0x${randomBytes(20).toString("hex")}`, chainId: SEPOLIA_L1 });
+  await installFakeWallet(page, { account, chainId: SEPOLIA_L1 });
   await page.goto(payUrl);
   return { context, page };
 }
@@ -66,8 +68,9 @@ test("an RPC outage keeps the payment pending, never confirmed, then recovers", 
   await signIn(page, freelancer.email, freelancer.password);
   const { payUrl, detailPath } = await createRequestViaUi(page, "3.5");
 
-  await mockRpc("test_setOutage", [true]);
-  const payer = await openAsPayer(browser, payUrl);
+  const account = newAccount();
+  await mockRpc("test_setOutage", [true, account]);
+  const payer = await openAsPayer(browser, payUrl, account);
   await payer.page.getByRole("button", { name: "Connect wallet" }).click();
   await payer.page.getByRole("button", { name: "Switch to Base Sepolia" }).click();
   await payer.page.getByRole("button", { name: "Send 3.50 test USDC" }).click();
@@ -79,7 +82,7 @@ test("an RPC outage keeps the payment pending, never confirmed, then recovers", 
   await page.goto(detailPath);
   await expect(page.getByText("Payment confirmed on testnet")).toHaveCount(0);
 
-  await mockRpc("test_setOutage", [false]);
+  await mockRpc("test_setOutage", [false, account]);
   await payer.page.getByRole("button", { name: "Check again" }).click();
   await expect(payer.page.getByRole("heading", { name: "Payment verified on Base Sepolia" })).toBeVisible({
     timeout: 30_000,

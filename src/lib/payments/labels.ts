@@ -6,6 +6,7 @@ export const STATUS_LABELS: Record<RequestStatus, string> = {
   confirmed: "Payment confirmed on testnet",
   expired: "Expired",
   cancelled: "Cancelled",
+  under_review: "Under review — payment evidence changed on chain",
 };
 
 /** Plain-language reasons a submitted transaction did not satisfy a request. */

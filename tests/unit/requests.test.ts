@@ -71,5 +71,6 @@ describe("toPublicProjection", () => {
   it("fails closed for expired and cancelled requests", () => {
     expect(toPublicProjection(row, new Date(row.expires_at))).toBeNull();
     expect(toPublicProjection({ ...row, status: "cancelled" }, NOW)).toBeNull();
+    expect(toPublicProjection({ ...row, status: "under_review" }, NOW)).toBeNull();
   });
 });

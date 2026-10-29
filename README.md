@@ -11,8 +11,8 @@ Prototype of a stablecoin payment flow for LATAM freelancers: a freelancer reque
 | Foundation (PR 1) | Merged |
 | Auth, schema, RLS (PR 2) | Merged |
 | Payment requests (PR 3) | Merged |
-| Testnet verification (PR 4) | In review |
-| Payout simulation (PR 5) | Not started |
+| Testnet verification (PR 4) | Merged |
+| Payout simulation (PR 5) | In review |
 | Release evidence, deployment (PR 6) | Not started |
 | Deployment | **Not deployed** |
 

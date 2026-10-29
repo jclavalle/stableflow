@@ -5,7 +5,7 @@ import { BASE_SEPOLIA, TEST_USDC } from "@/lib/chain/allowlist";
 import { formatUsdcUnits } from "./amount";
 import { hashLinkToken, isWellFormedLinkToken } from "./link-token";
 
-export type RequestStatus = "open" | "confirming" | "confirmed" | "expired" | "cancelled";
+export type RequestStatus = "open" | "confirming" | "confirmed" | "expired" | "cancelled" | "under_review";
 
 export const EXPIRY_OPTIONS_DAYS = [1, 3, 7] as const;
 
@@ -47,7 +47,8 @@ type PublicRow = {
 
 export function toPublicProjection(row: PublicRow, now: Date): PublicPaymentRequest | null {
   const status = effectiveStatus(row, now);
-  if (status === "expired" || status === "cancelled") return null;
+  // under_review: evidence changed on chain; fail closed for payers too.
+  if (status === "expired" || status === "cancelled" || status === "under_review") return null;
   return {
     amountUnits: row.amount_units,
     amountDisplay: formatUsdcUnits(row.amount_units),
