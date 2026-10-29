@@ -14,6 +14,8 @@ export const REJECTION_MESSAGES: Record<string, string> = {
   invalid_hash: "That is not a valid transaction hash.",
   reverted: "The transaction failed on chain, so no USDC moved. You can try again.",
   request_missing_creation_block: "This request was created before verification was available and can’t be paid. Ask for a new link.",
+  no_token_transfer: "The transaction did not move any Base Sepolia test USDC.",
+  // Retired by D37; kept so older attempts still read clearly.
   wrong_token_contract: "The transaction did not use the Base Sepolia test USDC contract.",
   not_direct_transfer: "The transaction was not a direct USDC transfer.",
   wrong_recipient: "The USDC went to a different address than this request.",

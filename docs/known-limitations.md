@@ -5,7 +5,7 @@ Updated with each PR. Nothing here is resolved unless marked so with evidence.
 ## Current state (PR 5 — payout simulation)
 
 - Built: sign-in, wallet linking, payment requests, public payment page with in-app wallet payment, server-side receipt verification with confirmations, owner receipt view, illustrative BRL quote, simulated payout, request history. Not built: release evidence, accessibility audit, deployment (PR 6).
-- **No real testnet transfer has been made yet.** All payment and payout E2E tests run against a local mock chain and a fake wallet (D30). The manual smoke test in `docs/manual-testnet-smoke.md` is pending.
+- One real testnet payment has been made (MetaMask, smart account): it reached the freelancer but was rejected by the original direct-transfer rule, which led to D37. A successful real end-to-end payment under D37 is still pending (`docs/manual-testnet-smoke.md`). Automated E2E uses a mock chain and a fake wallet that sends direct transfers only (D30); relayed transfers are covered by unit fixtures and one live probe.
 - Reorg handling is tested with unit fixtures and a mock-chain "transaction disappeared" case, not against a real Base Sepolia reorg.
 - `under_review` is terminal: there is no admin tool to resolve a review in the MVP.
 - If the owner leaves the page mid-simulation, it stays `created`/`processing` until they return (no background job); reopening the page resumes it.
@@ -25,6 +25,6 @@ Updated with each PR. Nothing here is resolved unless marked so with evidence.
 
 - Testnet only. Test USDC has no value; no mainnet configuration exists.
 - Fiat payout is a simulation with fictional FX and fees (assumptions version `illustrative-2026-10.1`); no bank transfer occurs, no tokens are moved or reserved, and no banking details are collected. Taxes are not modeled (shown as "not modeled", never as zero).
-- An ordinary ERC-20 transfer carries no invoice identifier. Secret links, creation windows and unique-event checks reduce misuse but do not cryptographically bind a transfer to a request.
+- Verification matches the token's Transfer event (D37), so any transaction that moves exactly the requested test USDC to the recipient — direct, smart-account or relayed — can satisfy a request once. An ordinary ERC-20 transfer carries no invoice identifier. Secret links, creation windows and unique-event checks reduce misuse but do not cryptographically bind a transfer to a request.
 - Three block confirmations is a demo confidence policy, not a statement about settlement finality.
 - No legal or compliance conclusion is made; see the compliance research register when it exists.

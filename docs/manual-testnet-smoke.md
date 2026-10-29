@@ -1,6 +1,6 @@
 # Manual testnet smoke test (Base Sepolia)
 
-Status: **not yet run.** Automated E2E uses a mock chain; this checklist produces real-network evidence. Record results in the table at the end. Never record private keys or seed phrases anywhere.
+Status: **in progress** (attempt 1 found a defect, fixed by D37; attempt 2 pending). Automated E2E uses a mock chain; this checklist produces real-network evidence. Record results in the table at the end. Never record private keys or seed phrases anywhere.
 
 ## Prerequisites (Julio)
 
@@ -27,4 +27,5 @@ Status: **not yet run.** Automated E2E uses a mock chain; this checklist produce
 
 | Date (UTC) | Commit | Tx hash | Amount | Time to verified | Explorer matches | Negative check | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-10-29 | 067e9f5 | `0xe4ae817323cae4b908e552d2c2453a804a04727665ad1300afe26a5bca365fba` | 1.50 | — (rejected) | Yes: one test-USDC Transfer Payer → Freelancer, 1.50, block 51,920,270 | — | MetaMask sent an EIP-7702 smart-account transaction via a relayer; the direct-transfer rule rejected it (`wrong_token_contract`). Funds arrived. Led to D37. |
 | | | | | | | | |
