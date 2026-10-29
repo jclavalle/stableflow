@@ -24,7 +24,8 @@ const FAUCETS = {
 };
 
 // Client-side retry schedule for verification (ms). Bounded; then manual.
-const BACKOFF = [2_000, 3_000, 5_000, 8_000, 13_000, 20_000, 30_000, 30_000, 30_000, 30_000];
+// Dense through the first ~40 s (the 30 s minimum age, D38), then slower; ~3 min in total.
+const BACKOFF = [2_000, 3_000, 5_000, 5_000, 5_000, 5_000, 5_000, 8_000, 13_000, 20_000, 30_000, 30_000, 30_000, 30_000];
 
 const isUnfinished = (attempt: AttemptView) => attempt.status === "submitted" || attempt.status === "pending";
 
@@ -313,8 +314,8 @@ function PaymentProgress({
     {
       label:
         attempt.status === "verified"
-          ? `Confirmed (${attempt.requiredConfirmations}+ blocks)`
-          : `Confirming (${Math.min(attempt.confirmations, attempt.requiredConfirmations)} of ${attempt.requiredConfirmations} blocks)`,
+          ? `Confirmed (${attempt.requiredConfirmations}+ blocks and at least 30 seconds)`
+          : `Confirming (${Math.min(attempt.confirmations, attempt.requiredConfirmations)} of ${attempt.requiredConfirmations} blocks, and at least 30 seconds)`,
       done: attempt.status === "verified",
     },
   ];

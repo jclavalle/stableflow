@@ -52,7 +52,11 @@ export function validScenario(): Scenario {
       blockHash: blockHash(MINED_AT),
       logs: [transferLog(PAYER, RECIPIENT, AMOUNT, 7)],
     },
-    blocks: new Map([[MINED_AT, { hash: blockHash(MINED_AT), number: MINED_AT, timestamp: MINED_TIMESTAMP }]]),
+    blocks: new Map([
+      [MINED_AT, { hash: blockHash(MINED_AT), number: MINED_AT, timestamp: MINED_TIMESTAMP }],
+      // Head block, 30 s of chain time later (exactly the minimum age).
+      [MINED_AT + BigInt(2), { hash: blockHash(MINED_AT + BigInt(2)), number: MINED_AT + BigInt(2), timestamp: MINED_TIMESTAMP + BigInt(30) }],
+    ]),
   };
 }
 

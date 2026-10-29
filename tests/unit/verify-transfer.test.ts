@@ -112,6 +112,29 @@ describe("verifyTransfer: confirmations boundary", () => {
   });
 });
 
+describe("verifyTransfer: minimum confirmation age (D38)", () => {
+  const head = MINED_AT + BigInt(2);
+  const withHeadAge = (seconds: number) => (s: Scenario) =>
+    s.blocks.set(head, { hash: blockHash(head), number: head, timestamp: MINED_TIMESTAMP + BigInt(seconds) });
+
+  it("stays pending with enough blocks until 30 s of chain time have passed", async () => {
+    await expect(run(withHeadAge(29))).resolves.toEqual({ kind: "pending", confirmations: 3, reason: "aging" });
+    expect((await run(withHeadAge(30))).kind).toBe("confirmed");
+  });
+
+  it("keeps waiting even with many fast blocks", async () => {
+    const result = await run((s) => {
+      s.head = MINED_AT + BigInt(150);
+      s.blocks.set(s.head, { hash: blockHash(s.head), number: s.head, timestamp: MINED_TIMESTAMP + BigInt(29) });
+    });
+    expect(result).toEqual({ kind: "pending", confirmations: 151, reason: "aging" });
+  });
+
+  it("is unavailable, never confirmed, if the head block can't be read", async () => {
+    await expect(run((s) => s.blocks.delete(head))).resolves.toEqual({ kind: "unavailable", reason: "rpc_error" });
+  });
+});
+
 describe("verifyTransfer: not yet on chain", () => {
   it("is submitted when the transaction is unknown", async () => {
     await expect(run((s) => (s.tx = null))).resolves.toEqual({ kind: "submitted", reason: "not_found" });

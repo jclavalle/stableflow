@@ -6,7 +6,7 @@ Updated with each PR. Nothing here is resolved unless marked so with evidence.
 
 - Built: sign-in, wallet linking, payment requests, public payment page with in-app wallet payment, server-side receipt verification with confirmations, owner receipt view, illustrative BRL quote, simulated payout, request history. Not built: release evidence, accessibility audit, deployment (PR 6).
 - Real-network evidence: one end-to-end run on Base Sepolia with MetaMask (request → relayed smart-account payment → verified → quote → simulated payout) passed on 2026-10-29 (`docs/manual-testnet-smoke.md`). It is a single run with one wallet; other wallets are untested. Automated E2E uses a mock chain and a fake wallet that sends direct transfers only (D30).
-- **Confirmation depth is now sub-second.** Base Sepolia produced ~5 blocks per second during the smoke test (523 blocks in ~104 s), so the plan's 3-confirmation policy is met in well under a second; the real payment had 12 confirmations 2.8 s after mining. The policy is therefore weaker than its wording suggests. A time-based minimum (or Base's safe/finalized head) is an open decision (D38).
+- Confirmation policy is 3 blocks **and** at least 30 s of chain time (D38), because Base Sepolia's ~0.2 s blocks made block count alone sub-second. It is a demo confidence policy, not settlement finality; Base's `safe`/`finalized` heads are not used.
 - Reorg handling is tested with unit fixtures and a mock-chain "transaction disappeared" case, not against a real Base Sepolia reorg.
 - `under_review` is terminal: there is no admin tool to resolve a review in the MVP.
 - If the owner leaves the page mid-simulation, it stays `created`/`processing` until they return (no background job); reopening the page resumes it.
