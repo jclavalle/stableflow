@@ -12,11 +12,12 @@ Prototype of a stablecoin payment flow for LATAM freelancers: a freelancer reque
 | Auth, schema, RLS (PR 2) | Merged |
 | Payment requests (PR 3) | Merged |
 | Testnet verification (PR 4) | Merged |
-| Payout simulation (PR 5) | In review |
-| Release evidence, deployment (PR 6) | Not started |
-| Deployment | **Not deployed** |
+| Payout simulation (PR 5) | Merged |
+| Release evidence, deployment docs (PR 6) | In review |
+| Real Base Sepolia run | Passed once with MetaMask, 2026-10-29 ([smoke record](docs/manual-testnet-smoke.md)) |
+| Deployment | **Not deployed** ([runbook](docs/deployment.md)) |
 
-See [docs/known-limitations.md](docs/known-limitations.md) for what is and isn't built.
+See the [release checklist](docs/release-checklist.md) for evidence against each acceptance item, and [docs/known-limitations.md](docs/known-limitations.md) for what is and isn't built.
 
 ## Setup
 
@@ -44,7 +45,7 @@ To run database tests locally, export the same values as `SUPABASE_TEST_URL`, `S
 | `npm run test:integration` | Vitest database tests (RLS, privileges, `link_wallet`) against local Supabase. Needs `SUPABASE_TEST_URL`, `SUPABASE_TEST_ANON_KEY`, `SUPABASE_TEST_SERVICE_ROLE_KEY`; skipped without them, required in CI |
 | `npm run build` | Production build |
 | `npm run chain:check` | Read-only check of chain ID, USDC bytecode, symbol and decimals against the live (or given) RPC |
-| `npm run test:e2e` | Playwright against the production build on port 3217 (run `npm run build` first; `npx playwright install chromium` once). Auth tests need the Supabase variables |
+| `npm run test:e2e` | Playwright against the production build on port 3217 (run `npm run build` first; `npx playwright install chromium` once). Auth tests need the Supabase variables. Includes axe accessibility and 360 px checks (`e2e/a11y.spec.ts`); set `SCREENSHOT_DIR=docs/screenshots` to refresh the 360 px screenshots |
 
 No live secrets, wallet extension, faucet or RPC are needed for the test suite: E2E starts `e2e/mock-rpc.mjs` (a local stand-in for Base Sepolia on port 8546) and installs a fake browser wallet. Mock-chain results are not evidence of real-network behaviour; see `docs/manual-testnet-smoke.md`.
 
@@ -66,6 +67,7 @@ Recorded 2026-10-28; `package-lock.json` is authoritative.
 | @tanstack/react-query | 5.105.0 |
 | vitest | 5.0.5 |
 | @playwright/test / @next/env | 1.64.1 / 16.4.3 |
+| @axe-core/playwright | 4.14.0 |
 | eslint | 9.39.5 |
 
 ## Docs
@@ -73,7 +75,14 @@ Recorded 2026-10-28; `package-lock.json` is authoritative.
 - [Project plan](docs/project-plan.md) — scope, architecture, six-PR plan, acceptance checklist
 - [Decisions](docs/decisions.md) — [R]/[U]/[P]/[O] decision record and open questions
 - [PRD](docs/PRD.md) — problem, user, stories, metrics (assumptions, not research)
+- [Release checklist](docs/release-checklist.md) — plan §11 items with evidence
 - [Known limitations](docs/known-limitations.md)
+- [Architecture](docs/architecture.md) — what runs, trust boundaries, where KYC/AML, FX, monitoring and reconciliation would sit
+- [Failure states](docs/failure-states.md) — product rationale, including the real-wallet finding
+- [Rails comparison](docs/rails-comparison.md) — wire vs platform vs stablecoin, without cost claims
+- [Compliance research register](docs/compliance-research.md) — Brazil/US issues; not legal advice
+- [Deployment runbook](docs/deployment.md) — not yet executed
+- [Manual testnet smoke](docs/manual-testnet-smoke.md) — real Base Sepolia runs
 - [Evidence log](docs/evidence-log.md) — Claude Code vs Codex comparison notes
 
 ## Layout
