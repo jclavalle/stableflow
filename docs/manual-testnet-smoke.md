@@ -1,6 +1,6 @@
 # Manual testnet smoke test (Base Sepolia)
 
-Status: **in progress** (attempt 1 found a defect, fixed by D37; attempt 2 pending). Automated E2E uses a mock chain; this checklist produces real-network evidence. Record results in the table at the end. Never record private keys or seed phrases anywhere.
+Status: **passed on 2026-10-29 (attempt 2)**, except the manual negative check in step 9, which was not run by hand (it is covered by E2E on the mock chain and by the database uniqueness constraint). Attempt 1 found a defect, fixed by D37. Automated E2E uses a mock chain; this checklist produces real-network evidence. Record results in the table at the end. Never record private keys or seed phrases anywhere.
 
 ## Prerequisites (Julio)
 
@@ -28,4 +28,4 @@ Status: **in progress** (attempt 1 found a defect, fixed by D37; attempt 2 pendi
 | Date (UTC) | Commit | Tx hash | Amount | Time to verified | Explorer matches | Negative check | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 2026-10-29 | 067e9f5 | `0xe4ae817323cae4b908e552d2c2453a804a04727665ad1300afe26a5bca365fba` | 1.50 | — (rejected) | Yes: one test-USDC Transfer Payer → Freelancer, 1.50, block 51,920,270 | — | MetaMask sent an EIP-7702 smart-account transaction via a relayer; the direct-transfer rule rejected it (`wrong_token_contract`). Funds arrived. Led to D37. |
-| | | | | | | | |
+| 2026-10-29 | f644452 | `0x93eb78191694c6aca492e2e69070183c03b405a3f5ce2cc5e23e9b936a30d143` | 1.25 | 1.2 s from hash submission to verified (block mined 20:40:28Z, verified 20:40:30.8Z, 12 confirmations) | Yes: block 51,922,797 canonical; one test-USDC Transfer Payer → Freelancer, 1.25 (relayed by MetaMask, accepted under D37) | Not run by hand | Quote BRL 3.68 (`illustrative-2026-10.1`) matched the documented formula; one simulation created → processing → completed_simulation in 4.9 s; history separated chain and simulated events. No server errors. |
