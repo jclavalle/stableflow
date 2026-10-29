@@ -155,7 +155,7 @@ async function RequestDetails({ params }: { params: PageProps<"/requests/[id]">[
           </dl>
           <p className="text-xs opacity-80">
             Confirmations count blocks built on top of the one containing the payment. StableFlow
-            waits for 3 as a demo policy; this is not a guarantee of final settlement.
+            waits for 3 and at least 30 seconds of chain time as a demo policy; this is not a guarantee of final settlement.
           </p>
         </section>
       )}
@@ -171,7 +171,7 @@ async function RequestDetails({ params }: { params: PageProps<"/requests/[id]">[
                 <span className="break-all font-mono text-xs">{attempt.tx_hash}</span>
                 <span>
                   {attempt.status === "verified" && "Verified"}
-                  {attempt.status === "pending" && `Confirming (${attempt.confirmations} of 3)`}
+                  {attempt.status === "pending" && `Confirming (${Math.min(attempt.confirmations, 3)} of 3 blocks, and at least 30 seconds)`}
                   {attempt.status === "submitted" && "Waiting to appear on chain"}
                   {attempt.status === "rejected" && `Not accepted — ${rejectionMessage(attempt.error_code)}`}
                 </span>

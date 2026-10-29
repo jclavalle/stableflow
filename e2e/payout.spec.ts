@@ -21,7 +21,7 @@ async function paidRequest(page: Page, browser: Browser, amount: string) {
   await payer.goto(payUrl);
   await payer.getByRole("button", { name: "Connect wallet" }).click();
   await payer.getByRole("button", { name: /Send .* test USDC/ }).click();
-  await expect(payer.getByRole("heading", { name: "Payment verified on Base Sepolia" })).toBeVisible({ timeout: 30_000 });
+  await expect(payer.getByRole("heading", { name: "Payment verified on Base Sepolia" })).toBeVisible({ timeout: 90_000 });
   const txHash = (await payer.locator("a[href*='/tx/']").first().textContent())!.trim();
   await context.close();
 

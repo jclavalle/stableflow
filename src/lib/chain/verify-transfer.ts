@@ -11,6 +11,13 @@ import { BASE_SEPOLIA, TEST_USDC } from "./allowlist";
 /** Demo confidence policy, not a statement about settlement finality. */
 export const REQUIRED_CONFIRMATIONS = 3;
 
+/**
+ * Minimum chain time between the payment's block and the head (D38). Base
+ * Sepolia produces several blocks per second, so block count alone is reached
+ * almost instantly. Measured with block timestamps, not the server clock.
+ */
+export const MIN_CONFIRMATION_AGE_SECONDS = 30;
+
 const TOKEN = TEST_USDC.address.toLowerCase();
 const TRANSFER_TOPIC = toEventSelector("Transfer(address,address,uint256)");
 
@@ -83,7 +90,7 @@ export type VerificationResult =
   /** Not (yet) on chain. */
   | { kind: "submitted"; reason: "not_found" | "not_mined" }
   /** Matching transfer found; waiting for confirmations or canonical re-check. */
-  | { kind: "pending"; confirmations: number; reason: "confirming" | "block_not_canonical" }
+  | { kind: "pending"; confirmations: number; reason: "confirming" | "aging" | "block_not_canonical" }
   | { kind: "rejected"; code: RejectionCode }
   | { kind: "confirmed"; evidence: TransferEvidence };
 
@@ -175,6 +182,12 @@ export async function verifyTransfer(
       lower(blockAgain.hash) !== lower(receipt.blockHash)
     ) {
       return { kind: "pending", confirmations: 0, reason: "block_not_canonical" };
+    }
+
+    const headBlock = await reader.getBlock(head);
+    if (!headBlock) return { kind: "unavailable", reason: "rpc_error" };
+    if (headBlock.timestamp - block.timestamp < BigInt(MIN_CONFIRMATION_AGE_SECONDS)) {
+      return { kind: "pending", confirmations, reason: "aging" };
     }
 
     return {

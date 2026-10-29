@@ -13,6 +13,8 @@ const MOCK_RPC_PORT = 8546;
 // chain, and tests install a fake EIP-1193 wallet that sends to it.
 export default defineConfig({
   testDir: "./e2e",
+  // Payments wait for the 30 s minimum confirmation age (D38) on the mock chain.
+  timeout: 150_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
