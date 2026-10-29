@@ -2,8 +2,12 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 
-import { findPublicRequest } from "@/lib/payments/requests";
+import { WalletProviders } from "@/components/WalletProviders";
+import { findRequestByToken } from "@/lib/payments/requests";
+import { listAttempts, type AttemptView } from "@/lib/payments/verification";
 import { createAdminClient } from "@/lib/supabase/server";
+
+import { PayWithWallet } from "./PayWithWallet";
 
 export const metadata: Metadata = {
   title: "Payment request — StableFlow",
@@ -24,9 +28,13 @@ async function PaymentDetails({ params }: { params: PageProps<"/pay/[token]">["p
   await connection();
   const { token } = await params;
 
+  const admin = createAdminClient();
   let request;
+  let attempts: AttemptView[] = [];
   try {
-    request = await findPublicRequest(createAdminClient(), token, new Date());
+    const capability = await findRequestByToken(admin, token, new Date());
+    request = capability?.projection ?? null;
+    if (capability) attempts = await listAttempts(admin, capability.id);
   } catch {
     return (
       <p role="alert">This payment request can’t be loaded right now. Refresh to try again.</p>
@@ -44,6 +52,12 @@ async function PaymentDetails({ params }: { params: PageProps<"/pay/[token]">["p
       </>
     );
   }
+
+  // Resume from server state: a verified attempt, else the latest unfinished one.
+  const resume =
+    attempts.find((attempt) => attempt.status === "verified") ??
+    attempts.find((attempt) => attempt.status === "submitted" || attempt.status === "pending") ??
+    null;
 
   return (
     <>
@@ -70,9 +84,9 @@ async function PaymentDetails({ params }: { params: PageProps<"/pay/[token]">["p
         Send exactly this amount, on this network, in one transfer. Sending on another network,
         a different token, or a different amount will not be matched to this request.
       </p>
-      <p className="text-sm opacity-80">
-        In-app payment with a connected wallet is coming in the next version of this demo.
-      </p>
+      <WalletProviders>
+        <PayWithWallet token={token} request={request} initialAttempt={resume} />
+      </WalletProviders>
     </>
   );
 }

@@ -33,6 +33,10 @@ const serverEnvSchema = z.object({
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
+function isLocalUrl(value: string): boolean {
+  return LOCAL_HOSTS.has(new URL(value).hostname);
+}
+
 // Names that must never be inlined into the browser bundle.
 const SECRET_NAME_PATTERN = /SERVICE_ROLE|SECRET|PRIVATE|PASSWORD|RPC_URL/i;
 
@@ -52,6 +56,10 @@ export function parseServerEnv(env: Record<string, string | undefined>): ServerE
       .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
       .join("; ");
     throw new Error(`Invalid server configuration: ${issues}`);
+  }
+  // Local RPCs (test fixtures) are only allowed for a local app.
+  if (!isLocalUrl(result.data.APP_URL) && isLocalUrl(result.data.BASE_SEPOLIA_RPC_URL)) {
+    throw new Error("Invalid server configuration: BASE_SEPOLIA_RPC_URL must not be local for a deployed app");
   }
   return result.data;
 }

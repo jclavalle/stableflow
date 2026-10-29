@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { BASE_SEPOLIA } from "@/lib/chain/allowlist";
+import { createChainReader } from "@/lib/chain/reader";
 import { getServerConfig } from "@/lib/config/server";
 import { isTrustedOrigin, jsonError } from "@/lib/http";
 import { AMOUNT_ERROR_MESSAGES, parseUsdcAmount } from "@/lib/payments/amount";
@@ -44,6 +46,17 @@ export async function POST(request: Request) {
     return jsonError(429, "too_many_requests", "Too many requests created. Try again later.");
   }
 
+  // Capture the chain head before publishing, so no older transfer can ever
+  // satisfy this request. Fail closed if the chain can't be read.
+  let creationBlock: bigint;
+  try {
+    const reader = createChainReader();
+    if ((await reader.getChainId()) !== BASE_SEPOLIA.chainId) throw new Error("wrong chain");
+    creationBlock = await reader.getBlockNumber();
+  } catch {
+    return jsonError(503, "chain_unavailable", "Base Sepolia can't be reached right now. Try again shortly.");
+  }
+
   const { token, tokenHash } = generateLinkToken();
   const expiresAt = new Date(now.getTime() + parsed.data.expiresInDays * 24 * 60 * 60 * 1000);
 
@@ -55,6 +68,7 @@ export async function POST(request: Request) {
       p_amount_units: amount.units.toString(),
       p_public_token_hash: tokenHash,
       p_expires_at: expiresAt.toISOString(),
+      p_creation_block: creationBlock.toString(),
     })
     .single<{ id: string }>();
   if (error) return dbErrorResponse(error.message);

@@ -38,6 +38,19 @@ describe("parseServerEnv", () => {
     ).toThrow(/BASE_SEPOLIA_RPC_URL/);
   });
 
+  it("allows a local RPC only for a local app", () => {
+    expect(() =>
+      parseServerEnv({ ...valid, BASE_SEPOLIA_RPC_URL: "http://127.0.0.1:8546" }),
+    ).not.toThrow();
+    expect(() =>
+      parseServerEnv({
+        ...valid,
+        APP_URL: "https://stableflow.example",
+        BASE_SEPOLIA_RPC_URL: "http://127.0.0.1:8546",
+      }),
+    ).toThrow(/must not be local/);
+  });
+
   it("rejects malformed URLs", () => {
     expect(() => parseServerEnv({ ...valid, APP_URL: "not a url" })).toThrow(/APP_URL/);
   });
