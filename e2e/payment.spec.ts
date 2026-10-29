@@ -51,7 +51,7 @@ test("payer switches network, pays, and the request is verified only after confi
   ).toBeVisible();
 
   await expect(payer.page.getByRole("heading", { name: "Payment verified on Base Sepolia" })).toBeVisible({
-    timeout: 30_000,
+    timeout: 90_000,
   });
   await expect(payer.page.getByRole("region", { name: "Testnet disclosure" })).toBeVisible();
 
@@ -85,7 +85,7 @@ test("an RPC outage keeps the payment pending, never confirmed, then recovers", 
   await mockRpc("test_setOutage", [false, account]);
   await payer.page.getByRole("button", { name: "Check again" }).click();
   await expect(payer.page.getByRole("heading", { name: "Payment verified on Base Sepolia" })).toBeVisible({
-    timeout: 30_000,
+    timeout: 90_000,
   });
   await payer.context.close();
 });
@@ -102,7 +102,7 @@ test("a transaction hash for a different request is rejected and the request sta
   await payer.page.getByRole("button", { name: "Switch to Base Sepolia" }).click();
   await payer.page.getByRole("button", { name: "Send 10.00 test USDC" }).click();
   await expect(payer.page.getByRole("heading", { name: "Payment verified on Base Sepolia" })).toBeVisible({
-    timeout: 30_000,
+    timeout: 90_000,
   });
   const txHash = (await payer.page.locator("a[href*='/tx/']").first().textContent())!.trim();
 

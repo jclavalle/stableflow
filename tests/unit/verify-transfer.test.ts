@@ -11,7 +11,6 @@ import {
   PAYER,
   readerFor,
   RECIPIENT,
-  transferCall,
   transferLog,
   TX,
   validScenario,
@@ -64,6 +63,37 @@ describe("verifyTransfer: valid receipt", () => {
   });
 });
 
+describe("verifyTransfer: smart accounts and relayers (D37)", () => {
+  const RELAYER = "0x4444444444444444444444444444444444444444";
+  const DELEGATION = "0x5555555555555555555555555555555555555555";
+
+  it("confirms a relayed EIP-7702 payment, recording the token sender (as seen on Base Sepolia with MetaMask)", async () => {
+    const result = await run((s) => {
+      s.tx = { ...s.tx!, from: RELAYER, to: DELEGATION, input: "0xcef6d209" };
+      s.receipt!.logs = [
+        { address: DELEGATION, topics: [blockHash(BigInt(1))], data: "0x", logIndex: 6 },
+        transferLog(PAYER, RECIPIENT, AMOUNT, 7),
+      ];
+    });
+    expect(result).toMatchObject({ kind: "confirmed", evidence: { sender: PAYER, logIndex: 7, recipient: RECIPIENT } });
+  });
+
+  it("allows a separate USDC fee to another address in the same transaction", async () => {
+    const result = await run((s) => {
+      s.tx = { ...s.tx!, from: RELAYER, to: DELEGATION, input: "0xcef6d209" };
+      s.receipt!.logs = [transferLog(PAYER, RELAYER, BigInt(10_000), 6), transferLog(PAYER, RECIPIENT, AMOUNT, 7)];
+    });
+    expect(result).toMatchObject({ kind: "confirmed", evidence: { logIndex: 7 } });
+  });
+
+  it("confirms a transferFrom sent by a third party", async () => {
+    const result = await run((s) => {
+      s.tx = { ...s.tx!, from: OTHER, input: "0x23b872dd" };
+    });
+    expect(result).toMatchObject({ kind: "confirmed", evidence: { sender: PAYER } });
+  });
+});
+
 describe("verifyTransfer: confirmations boundary", () => {
   it("is pending at two confirmations and confirmed at three", async () => {
     await expect(run((s) => (s.head = MINED_AT + BigInt(1)))).resolves.toEqual({
@@ -82,6 +112,29 @@ describe("verifyTransfer: confirmations boundary", () => {
   });
 });
 
+describe("verifyTransfer: minimum confirmation age (D38)", () => {
+  const head = MINED_AT + BigInt(2);
+  const withHeadAge = (seconds: number) => (s: Scenario) =>
+    s.blocks.set(head, { hash: blockHash(head), number: head, timestamp: MINED_TIMESTAMP + BigInt(seconds) });
+
+  it("stays pending with enough blocks until 30 s of chain time have passed", async () => {
+    await expect(run(withHeadAge(29))).resolves.toEqual({ kind: "pending", confirmations: 3, reason: "aging" });
+    expect((await run(withHeadAge(30))).kind).toBe("confirmed");
+  });
+
+  it("keeps waiting even with many fast blocks", async () => {
+    const result = await run((s) => {
+      s.head = MINED_AT + BigInt(150);
+      s.blocks.set(s.head, { hash: blockHash(s.head), number: s.head, timestamp: MINED_TIMESTAMP + BigInt(29) });
+    });
+    expect(result).toEqual({ kind: "pending", confirmations: 151, reason: "aging" });
+  });
+
+  it("is unavailable, never confirmed, if the head block can't be read", async () => {
+    await expect(run((s) => s.blocks.delete(head))).resolves.toEqual({ kind: "unavailable", reason: "rpc_error" });
+  });
+});
+
 describe("verifyTransfer: not yet on chain", () => {
   it("is submitted when the transaction is unknown", async () => {
     await expect(run((s) => (s.tx = null))).resolves.toEqual({ kind: "submitted", reason: "not_found" });
@@ -96,50 +149,52 @@ describe("verifyTransfer: negative fixtures are rejected", () => {
   const cases: [string, (s: Scenario) => void, Partial<TransferExpectation>, string][] = [
     ["reverted receipt", (s) => (s.receipt!.status = "reverted"), {}, "reverted"],
     ["request without a creation block", () => {}, { creationBlock: null }, "request_missing_creation_block"],
-    ["transaction to another token contract", (s) => (s.tx!.to = OTHER), {}, "wrong_token_contract"],
-    ["contract creation (no to)", (s) => (s.tx!.to = null), {}, "wrong_token_contract"],
+    ["no test-USDC Transfer event", (s) => (s.receipt!.logs = []), {}, "no_token_transfer"],
     [
-      "transferFrom instead of transfer",
-      (s) => {
-        s.tx!.input = "0x23b872dd" + s.tx!.input.slice(10) + "0".repeat(64) as `0x${string}`;
-      },
-      {},
-      "not_direct_transfer",
-    ],
-    ["garbage calldata", (s) => (s.tx!.input = "0xdeadbeef"), {}, "not_direct_transfer"],
-    ["calldata to the wrong recipient", (s) => (s.tx!.input = transferCall(OTHER, AMOUNT)), {}, "wrong_recipient"],
-    ["underpayment", (s) => (s.tx!.input = transferCall(RECIPIENT, AMOUNT - BigInt(1))), {}, "wrong_amount"],
-    ["overpayment", (s) => (s.tx!.input = transferCall(RECIPIENT, AMOUNT + BigInt(1))), {}, "wrong_amount"],
-    ["no Transfer event", (s) => (s.receipt!.logs = []), {}, "unexpected_transfer_logs"],
-    [
-      "Transfer event from a different contract only",
+      "Transfer event from a different token only",
       (s) => (s.receipt!.logs = [transferLog(PAYER, RECIPIENT, AMOUNT, 0, OTHER)]),
       {},
-      "unexpected_transfer_logs",
+      "no_token_transfer",
     ],
     [
-      "two Transfer events (ambiguous)",
+      "two Transfer events to the recipient (ambiguous)",
       (s) => s.receipt!.logs.push(transferLog(PAYER, RECIPIENT, AMOUNT, 8)),
       {},
       "unexpected_transfer_logs",
     ],
     [
-      "event sender differs from transaction sender",
-      (s) => (s.receipt!.logs = [transferLog(OTHER, RECIPIENT, AMOUNT, 7)]),
+      "split payment to the recipient (ambiguous)",
+      (s) =>
+        (s.receipt!.logs = [
+          transferLog(PAYER, RECIPIENT, AMOUNT / BigInt(2), 7),
+          transferLog(PAYER, RECIPIENT, AMOUNT / BigInt(2), 8),
+        ]),
       {},
-      "sender_mismatch",
+      "unexpected_transfer_logs",
     ],
     [
-      "event recipient differs from calldata",
+      "USDC sent to someone else",
       (s) => (s.receipt!.logs = [transferLog(PAYER, OTHER, AMOUNT, 7)]),
       {},
       "wrong_recipient",
     ],
     [
-      "event amount differs from calldata",
+      "underpayment",
       (s) => (s.receipt!.logs = [transferLog(PAYER, RECIPIENT, AMOUNT - BigInt(1), 7)]),
       {},
       "wrong_amount",
+    ],
+    [
+      "overpayment",
+      (s) => (s.receipt!.logs = [transferLog(PAYER, RECIPIENT, AMOUNT + BigInt(1), 7)]),
+      {},
+      "wrong_amount",
+    ],
+    [
+      "malformed Transfer event from the token",
+      (s) => (s.receipt!.logs = [{ ...transferLog(PAYER, RECIPIENT, AMOUNT, 7), data: "0x" }]),
+      {},
+      "unexpected_transfer_logs",
     ],
     ["transfer mined before the request existed", () => {}, { creationBlock: MINED_AT + BigInt(1) }, "transfer_before_request"],
     [

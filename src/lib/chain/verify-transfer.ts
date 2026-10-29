@@ -1,6 +1,5 @@
 import {
   decodeEventLog,
-  decodeFunctionData,
   erc20Abi,
   isHash,
   toEventSelector,
@@ -11,6 +10,13 @@ import { BASE_SEPOLIA, TEST_USDC } from "./allowlist";
 
 /** Demo confidence policy, not a statement about settlement finality. */
 export const REQUIRED_CONFIRMATIONS = 3;
+
+/**
+ * Minimum chain time between the payment's block and the head (D38). Base
+ * Sepolia produces several blocks per second, so block count alone is reached
+ * almost instantly. Measured with block timestamps, not the server clock.
+ */
+export const MIN_CONFIRMATION_AGE_SECONDS = 30;
 
 const TOKEN = TEST_USDC.address.toLowerCase();
 const TRANSFER_TOPIC = toEventSelector("Transfer(address,address,uint256)");
@@ -71,12 +77,10 @@ export type RejectionCode =
   | "invalid_hash"
   | "reverted"
   | "request_missing_creation_block"
-  | "wrong_token_contract"
-  | "not_direct_transfer"
+  | "no_token_transfer"
   | "wrong_recipient"
   | "wrong_amount"
   | "unexpected_transfer_logs"
-  | "sender_mismatch"
   | "transfer_before_request"
   | "transfer_after_expiry";
 
@@ -86,15 +90,16 @@ export type VerificationResult =
   /** Not (yet) on chain. */
   | { kind: "submitted"; reason: "not_found" | "not_mined" }
   /** Matching transfer found; waiting for confirmations or canonical re-check. */
-  | { kind: "pending"; confirmations: number; reason: "confirming" | "block_not_canonical" }
+  | { kind: "pending"; confirmations: number; reason: "confirming" | "aging" | "block_not_canonical" }
   | { kind: "rejected"; code: RejectionCode }
   | { kind: "confirmed"; evidence: TransferEvidence };
 
 const lower = (value: string) => value.toLowerCase();
 
 /**
- * Verifies that `txHash` is a direct, successful test-USDC transfer of
- * exactly the expected amount to the expected recipient, mined after the
+ * Verifies that `txHash` is a successful transaction whose only test-USDC
+ * Transfer to the expected recipient carries exactly the expected amount
+ * (direct, smart-account or relayed: D37), mined after the
  * request was created and before it expired, with enough confirmations on
  * the canonical chain. Every check must pass; anything uncertain is pending
  * or unavailable, never confirmed.
@@ -112,8 +117,7 @@ export async function verifyTransfer(
       return { kind: "unavailable", reason: "rpc_wrong_chain" };
     }
 
-    const tx = await reader.getTransaction(hash);
-    if (!tx) return { kind: "submitted", reason: "not_found" };
+    if (!(await reader.getTransaction(hash))) return { kind: "submitted", reason: "not_found" };
     const receipt = await reader.getTransactionReceipt(hash);
     if (!receipt) return { kind: "submitted", reason: "not_mined" };
     if (receipt.status !== "success") return { kind: "rejected", code: "reverted" };
@@ -122,34 +126,27 @@ export async function verifyTransfer(
       return { kind: "rejected", code: "request_missing_creation_block" };
     }
 
-    // Direct transfer only: the transaction calls transfer() on the token.
-    if (!tx.to || lower(tx.to) !== TOKEN) return { kind: "rejected", code: "wrong_token_contract" };
-    let call;
-    try {
-      call = decodeFunctionData({ abi: erc20Abi, data: tx.input });
-    } catch {
-      return { kind: "rejected", code: "not_direct_transfer" };
-    }
-    if (call.functionName !== "transfer") return { kind: "rejected", code: "not_direct_transfer" };
-    const [callTo, callAmount] = call.args;
-    if (lower(callTo) !== lower(expected.recipient)) return { kind: "rejected", code: "wrong_recipient" };
-    if (callAmount !== expected.amountUnits) return { kind: "rejected", code: "wrong_amount" };
-
-    // Exactly one Transfer event from the allowlisted token, matching the call.
-    const transferLogs = receipt.logs.filter(
+    // Match on what the chain recorded, not on how the transaction was packaged
+    // (D37): direct transfers, smart accounts (EIP-7702, ERC-4337) and relayers
+    // all produce a Transfer event from the allowlisted token. Exactly one such
+    // event to the recipient is required; more than one is ambiguous.
+    const tokenLogs = receipt.logs.filter(
       (log) => lower(log.address) === TOKEN && log.topics[0] === TRANSFER_TOPIC,
     );
-    if (transferLogs.length !== 1) return { kind: "rejected", code: "unexpected_transfer_logs" };
-    const log = transferLogs[0];
-    let event;
-    try {
-      event = decodeEventLog({ abi: erc20Abi, eventName: "Transfer", topics: log.topics as [Hex, ...Hex[]], data: log.data });
-    } catch {
-      return { kind: "rejected", code: "unexpected_transfer_logs" };
+    if (tokenLogs.length === 0) return { kind: "rejected", code: "no_token_transfer" };
+    const transfers = [];
+    for (const log of tokenLogs) {
+      try {
+        const event = decodeEventLog({ abi: erc20Abi, eventName: "Transfer", topics: log.topics as [Hex, ...Hex[]], data: log.data });
+        transfers.push({ log, ...event.args });
+      } catch {
+        return { kind: "rejected", code: "unexpected_transfer_logs" };
+      }
     }
-    const { from, to, value } = event.args;
-    if (lower(from) !== lower(tx.from)) return { kind: "rejected", code: "sender_mismatch" };
-    if (lower(to) !== lower(expected.recipient)) return { kind: "rejected", code: "wrong_recipient" };
+    const toRecipient = transfers.filter((t) => lower(t.to) === lower(expected.recipient));
+    if (toRecipient.length === 0) return { kind: "rejected", code: "wrong_recipient" };
+    if (toRecipient.length > 1) return { kind: "rejected", code: "unexpected_transfer_logs" };
+    const { log, from, to, value } = toRecipient[0];
     if (value !== expected.amountUnits) return { kind: "rejected", code: "wrong_amount" };
 
     // Never accept evidence older than the request.
@@ -185,6 +182,12 @@ export async function verifyTransfer(
       lower(blockAgain.hash) !== lower(receipt.blockHash)
     ) {
       return { kind: "pending", confirmations: 0, reason: "block_not_canonical" };
+    }
+
+    const headBlock = await reader.getBlock(head);
+    if (!headBlock) return { kind: "unavailable", reason: "rpc_error" };
+    if (headBlock.timestamp - block.timestamp < BigInt(MIN_CONFIRMATION_AGE_SECONDS)) {
+      return { kind: "pending", confirmations, reason: "aging" };
     }
 
     return {
