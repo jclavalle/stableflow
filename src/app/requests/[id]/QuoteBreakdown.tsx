@@ -16,19 +16,19 @@ export function QuoteBreakdown({ quote }: { quote: QuoteView }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+      <dl className="grid grid-cols-1 gap-x-4 text-sm sm:grid-cols-[auto_1fr] sm:gap-y-1">
         {rows.map(([label, value]) => (
           <div key={label} className="contents">
             <dt className="font-medium">{label}</dt>
-            <dd>{value}</dd>
+            <dd className="mb-2 sm:mb-0">{value}</dd>
           </div>
         ))}
         <dt className="font-semibold">Illustrative payout</dt>
-        <dd className="font-semibold">BRL {formatBrlMinor(quote.outputMinor)} (rounded down to the cent)</dd>
+        <dd className="mb-2 font-semibold sm:mb-0">BRL {formatBrlMinor(quote.outputMinor)} (rounded down to the cent)</dd>
         <dt className="font-medium">Taxes</dt>
-        <dd>Not modeled — this is not a tax calculation</dd>
+        <dd className="mb-2 sm:mb-0">Not modeled — this is not a tax calculation</dd>
         <dt className="font-medium">Network gas</dt>
-        <dd>Paid separately by the sender in test ETH; not included and not representative of mainnet costs</dd>
+        <dd className="mb-2 sm:mb-0">Paid separately by the sender in test ETH; not included and not representative of mainnet costs</dd>
         <dt className="font-medium">Assumptions</dt>
         <dd className="font-mono text-xs">{quote.assumptionsVersion}</dd>
       </dl>

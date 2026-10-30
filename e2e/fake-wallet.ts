@@ -7,9 +7,14 @@ export const MOCK_RPC_URL = "http://127.0.0.1:8546";
  * transactions are handed to the mock RPC, which mines them. Starts on the
  * given chain so tests can exercise the "switch network" step.
  */
-export async function installFakeWallet(page: Page, options: { account: string; chainId: number }) {
+export async function installFakeWallet(
+  page: Page,
+  options: { account: string; chainId: number; failSends?: ("reject" | "insufficient")[] },
+) {
   await page.addInitScript(
-    ({ account, chainId, rpcUrl }) => {
+    ({ account, chainId, failSends, rpcUrl }) => {
+      // Scripted wallet failures, consumed one per send attempt.
+      const failures = [...failSends];
       let currentChain = chainId;
       const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
       const emit = (event: string, ...args: unknown[]) => listeners.get(event)?.forEach((fn) => fn(...args));
@@ -44,6 +49,11 @@ export async function installFakeWallet(page: Page, options: { account: string; 
               return [{ parentCapability: "eth_accounts" }];
             case "eth_sendTransaction": {
               if (currentChain !== 84532) throw Object.assign(new Error("wrong chain"), { code: 4901 });
+              const failure = failures.shift();
+              if (failure === "reject") throw Object.assign(new Error("User rejected the request."), { code: 4001 });
+              if (failure === "insufficient") {
+                throw Object.assign(new Error("insufficient funds for gas * price + value"), { code: -32000 });
+              }
               return rpc("test_sendTransaction", params);
             }
             default:
@@ -60,7 +70,7 @@ export async function installFakeWallet(page: Page, options: { account: string; 
       };
       Object.defineProperty(window, "ethereum", { value: provider, configurable: true });
     },
-    { ...options, rpcUrl: MOCK_RPC_URL },
+    { failSends: [], ...options, rpcUrl: MOCK_RPC_URL },
   );
 }
 

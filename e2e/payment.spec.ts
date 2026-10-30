@@ -63,6 +63,36 @@ test("payer switches network, pays, and the request is verified only after confi
   await payer.context.close();
 });
 
+test("a declined signature and missing funds send nothing and offer a safe retry", async ({ page, browser }) => {
+  const freelancer = await seedFreelancer();
+  await signIn(page, freelancer.email, freelancer.password);
+  const { payUrl, detailPath } = await createRequestViaUi(page, "4");
+
+  const context = await browser.newContext();
+  const payer = await context.newPage();
+  await installFakeWallet(payer, { account: newAccount(), chainId: 84532, failSends: ["reject", "insufficient"] });
+  await payer.goto(payUrl);
+  await payer.getByRole("button", { name: "Connect wallet" }).click();
+  const send = payer.getByRole("button", { name: "Send 4.00 test USDC" });
+
+  await send.click();
+  await expect(payer.getByRole("alert").filter({ hasText: "You declined the transaction" })).toContainText(
+    "Nothing was sent; you can try again.",
+  );
+  await send.click();
+  await expect(payer.getByRole("alert").filter({ hasText: "enough test ETH for gas" })).toContainText("try again");
+
+  // Neither failure created an attempt or changed the request.
+  await page.goto(detailPath);
+  await expect(page.getByText("Waiting for payment")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Submitted transactions" })).toHaveCount(0);
+
+  // The third try goes through.
+  await send.click();
+  await expect(payer.getByRole("heading", { name: /Verifying your payment…|Payment verified/ })).toBeVisible();
+  await context.close();
+});
+
 test("an RPC outage keeps the payment pending, never confirmed, then recovers", async ({ page, browser }) => {
   const freelancer = await seedFreelancer();
   await signIn(page, freelancer.email, freelancer.password);
